@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>REST-ful Café</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+
+    <h1>Welcome to the REST-ful café!</h1>
+    <p>Implement the API layer to bring data into this website!</p>
+    <p>Before starting check that your API is running on port 5000 by going to <a target="default"
+            href="http://127.0.0.1:5000/">http://127.0.0.1:5000/</a></p>
+
+    <div id="products-area">
+        <h2>Products</h2>
+        <h4>Get Products</h4>
+        <p>Route: GET /product should return a list of dictionaries with keys for "id", "name", "price" and "imageUrl"
+            like:
+        </p>
+        <pre>
+            <code>
+    [
+        {
+            "id": 1,
+            "name": "Tea",
+            "price": 1.2,
+            "imageUrl": "https://www.twinings.co.uk/app_/responsive/TwiningsUKI/media/content/About-Tea/shutterstock_126275183.jpg?w=1260",
+        },
+        {
+            "id": 2,
+            "name": "Coffee",
+            "price": 3.5,
+            "imageUrl": "https://media3.s-nbcnews.com/j/newscms/2019_33/2203981/171026-better-coffee-boost-se-329p_67dfb6820f7d3898b5486975903c2e51.fit-1240w.jpg",
+        },
+    ]
+            </code>
+        </pre>
+
+        <h4>Get Product Ingredients</h4>
+        <p>Route: GET /product/product_id/ingredients should return a list of dictionaries which makes up the
+            ingredients. Each dictionary must have keys for name", "content" and "isCommonAllergen" like:
+        </p>
+        <pre>
+            <code>
+    [
+        { "name": "Rice flower", "content": 20, "isCommonAllergen": True },
+        { "name": "Fish", "content": 50, "isCommonAllergen": False },
+        { "name": "Egg", "content": 30, "isCommonAllergen": True },
+    ]
+            </code>
+        </pre>
+
+        <div id="products-section" class="products-section"></div>
+
+        <div id="products-error-message"></div>
+
+        <button onclick="getProducts()">
+            Get Products
+        </button>
+
+    </div>
+
+    <div id="order-area">
+        <h2>Order</h2>
+        <h4>Post Order</h4>
+        <p>Route: POST /order API should receive the basket as a body and return an integer orderId like: </p>
+        <pre>
+            <code>
+    { "orderId": "123" }
+            </code>
+        </pre>
+        <p>Challenge: make the create order API calculate and return a "totalPrice" field</p>
+        <div id="order-section"></div>
+        <div id="order-error-message"></div>
+
+
+        <button onclick="createOrder()">
+            Create Order
+        </button>
+
+    </div>
+</body>
+
+</html>
+
+<script>
+    // API URL for localhost API
+    var apiUrl = 'http://127.0.0.1:5000/'; // Your API URL
+    var productAPIUrl = apiUrl + "product"
+
+    // Products section
+
+    function getProducts() {
+        document.getElementById("products-error-message").innerHTML = ``;
+        fetch(productAPIUrl).then(response => {
+            validateHttpResponseCode(response)
+            return response.json();
+        }).then(data => {
+            console.log(`Data returned from ${productAPIUrl}: `, data);
+            validateProductData(data)
+            document.getElementById("products-section").innerHTML = renderProductsRows(data);
+        }).catch(err => {
+            console.log("Get products failed due to:", err);
+            document.getElementById("products-error-message").innerHTML = `<p class="error-message">Oops something went wrong... <br/>ErrorMessage:${err.message}</p>`;
+        });
+    }
+
+    function renderProductsRows(products) {
+        html = ""
+        for (let index = 0; index < products.length; index++) {
+            const row = products[index];
+            html += renderProductRow(row)
+        }
+        return html
+    }
+
+    function renderProductRow(product) {
+        console.log(productIngredients)
+        return `<div class=\"product-row\">
+                    <img src="${product.imageUrl}" alt="product-image-${product.name} width="auto" height="200px" class="product-image"/>
+                    <div class="flex-row">
+                        <h4>${product.name}</h4>
+                        <h4>£${product.price}</h4>
+                        ${renderCounterHtml(product.id)}
+                    </div>
+                    <div onclick="showIngredients(${product.id})" class="flex-row ingredients-chevron"><i id="ingredients-chevron-${product.id}" class="fa fa-chevron-up"></i><p>Ingredients</p></div>
+                    <div id="product-ingredients-section-${product.id}"></div>
+                    <div id="product-ingredients-error-message-${product.id}"></div>
+                </div>
+                `
+    }
+
+    function validateProductData(productData) {
+        errorMessage = Error(`Product data is in the wrong format! Product must be a list of dictionaries with keys "id", "name", "price" and "imageUrl". Instead got:${JSON.stringify(productData)}`)
+        if (!productData.length) {
+            throw errorMessage
+        }
+        for (let index = 0; index < productData.length; index++) {
+            const data = productData[index];
+            if (!data.name || !data.price || !data.id || !data.imageUrl) {
+                throw errorMessage
+            }
+            if (typeof data.price != 'number') {
+                throw Error(`price must be a number but was: ${data.price}`)
+            }
+            if (typeof data.id != 'number') {
+                throw Error(`id must be a number but was: ${data.id}`)
+            }
+        }
+        console.log("Products was valid format.")
+    }
+
+    // Product ingredients section
+    productIngredients = {}
+    function showIngredients(productId) {
+        const newState = !productIngredients[productId]
+        productIngredients[productId] = newState
+        const chevron = document.getElementById(`ingredients-chevron-${productId}`)
+
+        if (newState) {
+            chevron.className = "fa fa-chevron-down";
+            getProductIngredients(productId)
+        }
+        else {
+            chevron.className = "fa fa-chevron-up";
+            document.getElementById(`product-ingredients-section-${productId}`).innerHTML = ``
+            document.getElementById(`product-ingredients-error-message-${productId}`).innerHTML = ``;
+        }
+    }
+
+    function getProductIngredients(productId) {
+        const productIngredientsUrl = apiUrl + `product/${productId}/ingredients`
+        fetch(productIngredientsUrl).then(response => {
+            console.log(response)
+            validateHttpResponseCode(response)
+            return response.json();
+        }).then(data => {
+            console.log(`Data returned from ${productIngredientsUrl}: `, data);
+            validateProductIngredientsData(data)
+            document.getElementById(`product-ingredients-section-${productId}`).innerHTML = `<p>${renderProductIngredients(data)}</p>`
+        }).catch(err => {
+            console.log(`Get product ingredients from ${productIngredientsUrl} failed due to:`, err);
+            document.getElementById(`product-ingredients-error-message-${productId}`).innerHTML = `<p class="error-message">Oops something went wrong... <br/>ErrorMessage:${err.message}</p>`;
+        });
+    }
+
+    function validateProductIngredientsData(data) {
+        const errorMessage = `Product ingredients is in the wrong format! It must be a list of dictionaries with keys "name", "content" and "isCommonAllergen"`
+        const error = Error(errorMessage)
+        if (!data || !data.length) {
+            throw error
+        }
+        let contentSum = 0
+        for (let index = 0; index < data.length; index++) {
+            const ingredient = data[index];
+            if (!ingredient.name) {
+                throw error
+            }
+            if (typeof ingredient.content !== "number") {
+                throw Error(errorMessage + "Content is not a number!")
+            }
+            if (ingredient.isCommonAllergen == undefined) {
+                throw error
+            }
+            if (typeof ingredient.isCommonAllergen !== "boolean") {
+                throw Error(errorMessage + "isCommonAllergen is not a boolean!")
+            }
+            contentSum += ingredient.content
+        }
+        if (contentSum != 100) {
+            throw Error(errorMessage + `Content Must add up to 100. But yours adds up to ${contentSum}`)
+        }
+    }
+
+    function renderProductIngredients(ingredients) {
+        html = ""
+        for (let index = 0; index < ingredients.length; index++) {
+            const ingredient = ingredients[index];
+            html += renderIngredient(ingredient)
+        }
+        return html
+    }
+
+    function renderIngredient(ingredient) {
+        if (ingredient.isCommonAllergen) {
+            return `<b>${ingredient.name} - ${ingredient.content}% (May cause allergic reaction)</b> <br/>`
+        } else {
+            return `${ingredient.name} - ${ingredient.content}% <br/>`
+        }
+    }
+
+    // Order Section 
+    var orderAPIUrl = apiUrl + "order"
+
+    function createOrder() {
+        document.getElementById("order-error-message").innerHTML = ``;
+        document.getElementById("order-section").innerHTML = ``
+
+        const basketData = basketToCreateBody(basket)
+        const body = JSON.stringify(basketData)
+        console.log("Create request body:", body)
+        fetch(orderAPIUrl, { method: "POST", body }).then(response => {
+            console.log(response)
+            validateHttpResponseCode(response)
+            return response.json();
+        }).then(data => {
+            console.log(`Data returned from ${orderAPIUrl}: `, data);
+            validateOrderData(data)
+            document.getElementById("order-section").innerHTML = `<h4>Thanks for ordering your order OrderId is: ${data.orderId}</h4><h4>Total price is: £${data.totalPrice}</h4>`
+        }).catch(err => {
+            console.log("Get order failed due to:", err);
+            document.getElementById("order-error-message").innerHTML = `<p class="error-message">Oops something went wrong... <br/>ErrorMessage:${err.message}</p>`;
+        });
+    }
+    function basketToCreateBody(basket) {
+        createOrderBody = []
+        for (const productId in basket) {
+            createOrderBody.push({ productId, quantity: basket[productId] })
+        }
+        return createOrderBody
+    }
+
+    function validateOrderData(orderData) {
+        const errorMessage = Error(`Order response is in the wrong format! The POST order response must be a json object with the key orderId. Instead got: ${orderData}`)
+        if (!orderData) {
+            throw errorMessage
+        }
+        if (typeof orderData.orderId != 'number') {
+            throw Error(`id must be a number but was: ${orderData.orderId}`)
+        }
+    }
+
+    // UI Elements 
+
+    // Counter
+    function renderCounterHtml(productId) {
+        return `
+        <div id="input_div-${productId}" class="counter">
+            <input type="text" size="1" value="${basket[productId] || 0}" id="count-${productId}" style="font-size:40px;">
+            <i class="fa fa-minus-square" id="moins-${productId}" onclick="removeFromBasket(${productId})" style="font-size:40px;"></i>
+            <i class="fa fa-plus-square" id="plus-${productId}" onclick="addToBasket(${productId})" style="font-size:40px;"></i>
+        </div>
+    `
+    }
+
+    var basket = {}
+    function addToBasket(productId) {
+        let countEl = document.getElementById(`count-${productId}`);
+        if (!basket[productId]) {
+            basket[productId] = 1
+            countEl.value = basket[productId];
+            return
+        }
+        basket[productId]++;
+        countEl.value = basket[productId];
+    }
+    function removeFromBasket(productId) {
+        let countEl = document.getElementById(`count-${productId}`);
+        if (!basket[productId]) {
+            basket[productId] = 0
+            countEl.value = basket[productId];
+            return
+        }
+        basket[productId]--;
+        countEl.value = basket[productId];
+    }
+
+    // Utilities
+
+    function validateHttpResponseCode(response) {
+        if (!response) {
+            throw new Error("Response was not defined")
+        }
+        if (response.status !== 200 && response.status !== 201) {
+            throw new Error(`Incorrect HTTP status returned from API. Expected status 2xx but got: ${response.status}. Look up what this status code means and work out the issue 🐛`)
+        }
+    }
+
+</script>
+
+<style>
+    h1 {
+        color: black;
+        font-size: 60px;
+        font-family: Arial, Helvetica, sans-serif;
+        padding: 20px 20px 0;
+    }
+
+    h2 {
+        color: black;
+        font-size: 50px;
+        font-family: Arial, Helvetica, sans-serif;
+        padding: 20px 20px 0;
+    }
+
+    h4 {
+        color: black;
+        font-size: 40px;
+        font-family: Arial, Helvetica, sans-serif;
+        padding: 20px 20px 0;
+        margin: 0;
+    }
+
+    p {
+        color: black;
+        font-size: 20px;
+        font-family: Arial, Helvetica, sans-serif;
+        padding: 10px;
+        margin: 10;
+    }
+
+    button {
+        background-color: #4CAF50;
+        border: 4px black;
+        border-style: solid;
+        color: white;
+        padding: 15px 32px;
+        text-align: center;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 40px;
+        margin: 4px 2px;
+        cursor: pointer;
+    }
+
+    .product-row {
+        background-color: #00bdbd;
+        margin: 40px;
+        padding: 0 40px;
+        width: 600px;
+    }
+
+    .products-section {
+        display: flex;
+        flex-flow: row wrap;
+        justify-content: space-between;
+    }
+
+    .flex-row {
+        display: inline-flex;
+        text-align: center;
+        vertical-align: middle;
+        align-items: center;
+        justify-content: center;
+        /*centers items on the line (the x-axis by default)*/
+        align-items: center;
+        /*centers items on the cross-axis (y by default)*/
+    }
+
+    .product-image {
+        padding: 30px 145px 0
+    }
+
+    .ingredients-chevron {
+        padding-left: 150px;
+        cursor: pointer;
+    }
+
+    .ingredients-chevron:hover {
+        text-decoration: underline;
+        color: blue !important;
+    }
+
+    .ingredients-chevron:hover p {
+        text-decoration: underline;
+        color: blue !important;
+    }
+
+    .error-message {
+        color: red;
+        font-size: 20px;
+        font-family: Arial, Helvetica, sans-serif;
+        padding: 10px;
+    }
+
+    .counter {
+        padding: 65px 15px
+    }
+</style>
