@@ -1,0 +1,9 @@
+
+AWSTemplateFormatVersion: "2010-09-09" 
+Description: A broken S3 bucket
+
+Resources:
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: academy_de_example_bucket

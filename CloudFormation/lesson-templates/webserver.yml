@@ -1,0 +1,17 @@
+Description: EC2 webserver provisioned in account Default VPC
+
+Resources:
+  Ec2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0db188056a6ff81ae # Amazon Linux AMI in Ireland
+      Tags:
+        - Key: Name
+          Value: my-ec2-webserver
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y && yum install -y httpd # Install apache web server
+          systemctl start httpd && systemctl enable httpd # Start webserver
+          echo "Hello World" > /var/www/html/index.html # Create web content

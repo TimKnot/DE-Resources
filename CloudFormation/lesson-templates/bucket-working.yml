@@ -1,0 +1,9 @@
+
+AWSTemplateFormatVersion: "2010-09-09" 
+Description: Template for a single S3 bucket
+
+Resources:
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: academy-de-example-bucket
